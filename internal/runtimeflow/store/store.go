@@ -121,7 +121,7 @@ func (m *Memory) PutClaim(claim *model.Claim) {
 func (m *Memory) Claim(id string) *model.Claim {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.claims[id]
+	return m.claims[id].Clone()
 }
 
 func (m *Memory) SetCommitError(err error) {
@@ -159,7 +159,7 @@ func (m *Memory) BeginClaim(id string) (*ClaimTx, error) {
 	if claim == nil {
 		return nil, errors.New("claim not found")
 	}
-	return &ClaimTx{memory: m, original: claim, current: claim}, nil
+	return &ClaimTx{memory: m, original: claim.Clone(), current: claim.Clone()}, nil
 }
 
 type ClaimTx struct {

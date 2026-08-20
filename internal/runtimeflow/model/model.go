@@ -143,7 +143,8 @@ func (c *Claim) Clone() *Claim {
 	if c == nil {
 		return nil
 	}
-	return c
+	copy := *c
+	return &copy
 }
 
 func (c *Claim) MarkClaimed() {

@@ -149,9 +149,9 @@ func (r *Runtime) CompleteClaim(id string) (err error) {
 		return errors.New("claim is not pending")
 	}
 	claim.MarkClaimed()
-	r.store.PublishClaimAudit(id)
 	if err = tx.Commit(); !worker.CommitSucceeded(err) {
 		return err
 	}
+	r.store.PublishClaimAudit(id)
 	return nil
 }
