@@ -86,7 +86,6 @@ type PooledRequest struct {
 func (r *PooledRequest) Reset() {
 	r.UserID = ""
 	r.CampaignID = ""
-	r.Correlation = ""
 }
 
 func (r *PooledRequest) Clone() PooledRequest {
@@ -110,10 +109,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
