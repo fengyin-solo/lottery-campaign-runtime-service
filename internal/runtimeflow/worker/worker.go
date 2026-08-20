@@ -73,21 +73,26 @@ func ProcessResources(ids []string, open func() (BatchHandle, error)) error {
 func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	results := make(chan string, len(tasks))
 	var wg sync.WaitGroup
-	wg.Add(len(tasks))
 	for _, task := range tasks {
-		task := task.Clone()
 		go func() {
+			wg.Add(1)
 			defer wg.Done()
 			<-start
+			task.MarkDelivered()
 			results <- task.ID
 		}()
 	}
 	go func() {
-		wg.Wait()
 		close(results)
 	}()
 	return results
 }
+
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
 
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)

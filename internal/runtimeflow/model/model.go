@@ -110,10 +110,17 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	return t
+}
+
+func (t *DrawTask) MarkDelivered() {
+	t.Labels = append(t.Labels, "delivered")
+}
 
 type DeliveryState struct {
 	CampaignID string
