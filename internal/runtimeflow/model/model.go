@@ -36,6 +36,8 @@ func (b AudienceBatch) Clone() AudienceBatch {
 
 var ErrTemporary = errors.New("temporary redemption failure")
 
+func IsTemporary(err error) bool { return err == ErrTemporary }
+
 type Redemption struct {
 	ID       string
 	Attempts int
@@ -110,10 +112,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
