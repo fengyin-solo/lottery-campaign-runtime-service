@@ -21,7 +21,7 @@ go run ./cmd/server
 
 ## 运行流模块
 
-`internal/runtimeflow` 提供抽奖后台任务的并发与生命周期示例，包括活动导出、受众批处理、奖品领取、通知、重试、审计和库存预留。模块按 `model`、`store`、`worker`、`service` 分层，测试覆盖取消传播、异步数据所有权、资源释放和事务可见性。
+`internal/runtimeflow` 提供抽奖后台任务的并发与生命周期示例，包括活动导出、受众批处理、奖品领取、通知、重试、审计和奖品余量预留。模块按 `model`、`store`、`worker`、`service` 分层，测试覆盖取消传播、异步数据所有权、资源释放和事务可见性。
 
 ## API 列表
 
