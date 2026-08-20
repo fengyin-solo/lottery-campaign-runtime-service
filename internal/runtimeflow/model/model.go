@@ -105,7 +105,8 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 	if p == nil {
 		return nil
 	}
-	return p
+	copy := *p
+	return &copy
 }
 
 func (p *PrizeSnapshot) Available() bool {

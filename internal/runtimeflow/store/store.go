@@ -83,24 +83,26 @@ func (m *Memory) PutPrize(prize *model.PrizeSnapshot) {
 	m.prizes[prize.PrizeID] = prize.Clone()
 }
 
+// Prize returns an immutable snapshot of the prize's current state. Callers may
+// mutate the returned value freely; it never aliases the stored object.
 func (m *Memory) Prize(id string) *model.PrizeSnapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.prizes[id]
+	return m.prizes[id].Clone()
 }
 
+// ReservePrize atomically decrements the remaining count for a prize. The
+// availability check and the decrement run under a single lock hold, so
+// concurrent callers cannot both observe a positive remaining and drive it
+// negative: exactly one succeeds while stock lasts.
 func (m *Memory) ReservePrize(id string) bool {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	prize := m.prizes[id]
-	m.mu.Unlock()
-	if prize == nil || !prize.Available() {
+	if prize == nil {
 		return false
 	}
-	reserved := prize.ReserveLocally()
-	m.mu.Lock()
-	m.prizes[id] = prize
-	m.mu.Unlock()
-	return reserved
+	return prize.ReserveLocally()
 }
 
 func (m *Memory) SaveDelivery(state *model.DeliveryState) {

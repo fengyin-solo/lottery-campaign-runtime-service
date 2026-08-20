@@ -89,15 +89,11 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	return results
 }
 
+// SnapshotAvailable reports whether a prize snapshot still has stock to
+// reserve. It treats nil and zero-remaining snapshots identically: an absent
+// prize is not available, and a depleted prize is not available.
 func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
-	return snapshot != nil
-}
-
-func ReserveSnapshot(snapshot *model.PrizeSnapshot) bool {
-	if !SnapshotAvailable(snapshot) {
-		return false
-	}
-	return snapshot.ReserveLocally()
+	return snapshot.Available()
 }
 
 func CommitSucceeded(err error) bool { return err == nil }

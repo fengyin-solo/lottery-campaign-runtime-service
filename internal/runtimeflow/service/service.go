@@ -101,6 +101,14 @@ func (r *Runtime) AuditRequest(userID, campaignID, correlation string) {
 	r.pool.Put(request)
 }
 
+// ClaimPrize reserves a single unit of the prize's stock for one caller.
+//
+// The snapshot is read before the rendezvous (ready/start) so every contender
+// observes the pre-claim state, but the actual reservation is delegated to
+// store.ReservePrize, which performs the availability check and the decrement
+// atomically under the store's lock. Two concurrent callers can therefore both
+// pass the local availability pre-check, yet only one reserves successfully and
+// the remaining count never drops below zero.
 func (r *Runtime) ClaimPrize(prizeID string, ready chan<- struct{}, start <-chan struct{}) bool {
 	snapshot := r.store.Prize(prizeID)
 	ready <- struct{}{}
@@ -108,12 +116,7 @@ func (r *Runtime) ClaimPrize(prizeID string, ready chan<- struct{}, start <-chan
 	if !worker.SnapshotAvailable(snapshot) {
 		return false
 	}
-	reserved := worker.ReserveSnapshot(snapshot)
-	if !reserved {
-		return false
-	}
-	r.store.PutPrize(snapshot)
-	return true
+	return r.store.ReservePrize(prizeID)
 }
 
 func (r *Runtime) BatchDraw(tasks []model.DrawTask, start <-chan struct{}) []string {
