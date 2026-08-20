@@ -16,6 +16,7 @@ type Memory struct {
 	deliveries  map[string]*model.DeliveryState
 	claims      map[string]*model.Claim
 	claimAudits []string
+	batchRuns   map[string]int
 	commitError error
 }
 
@@ -23,8 +24,21 @@ func NewMemory() *Memory {
 	return &Memory{
 		exports: make(map[string]*model.ExportJob), redemptions: make(map[string]*model.Redemption),
 		prizes: make(map[string]*model.PrizeSnapshot), deliveries: make(map[string]*model.DeliveryState),
-		claims: make(map[string]*model.Claim),
+		claims:    make(map[string]*model.Claim),
+		batchRuns: make(map[string]int),
 	}
+}
+
+func (m *Memory) RecordBatchResult(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.batchRuns[id]++
+}
+
+func (m *Memory) BatchResultCount(id string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.batchRuns[id]
 }
 
 func (m *Memory) SaveExport(job *model.ExportJob) {
@@ -107,7 +121,7 @@ func (m *Memory) PutClaim(claim *model.Claim) {
 func (m *Memory) Claim(id string) *model.Claim {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.claims[id].Clone()
+	return m.claims[id]
 }
 
 func (m *Memory) SetCommitError(err error) {
@@ -145,7 +159,7 @@ func (m *Memory) BeginClaim(id string) (*ClaimTx, error) {
 	if claim == nil {
 		return nil, errors.New("claim not found")
 	}
-	return &ClaimTx{memory: m, original: claim.Clone(), current: claim.Clone()}, nil
+	return &ClaimTx{memory: m, original: claim, current: claim}, nil
 }
 
 type ClaimTx struct {
@@ -173,5 +187,6 @@ func (tx *ClaimTx) Rollback() error {
 		return nil
 	}
 	tx.done = true
+	tx.memory.PutClaim(tx.original)
 	return nil
 }

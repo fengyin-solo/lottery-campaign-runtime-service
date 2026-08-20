@@ -110,10 +110,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
@@ -139,6 +143,11 @@ func (c *Claim) Clone() *Claim {
 	if c == nil {
 		return nil
 	}
-	copy := *c
-	return &copy
+	return c
+}
+
+func (c *Claim) MarkClaimed() {
+	if c != nil {
+		c.State = "claimed"
+	}
 }
