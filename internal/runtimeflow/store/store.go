@@ -16,6 +16,7 @@ type Memory struct {
 	deliveries  map[string]*model.DeliveryState
 	claims      map[string]*model.Claim
 	claimAudits []string
+	batchRuns   map[string]int
 	commitError error
 }
 
@@ -23,8 +24,21 @@ func NewMemory() *Memory {
 	return &Memory{
 		exports: make(map[string]*model.ExportJob), redemptions: make(map[string]*model.Redemption),
 		prizes: make(map[string]*model.PrizeSnapshot), deliveries: make(map[string]*model.DeliveryState),
-		claims: make(map[string]*model.Claim),
+		claims:    make(map[string]*model.Claim),
+		batchRuns: make(map[string]int),
 	}
+}
+
+func (m *Memory) RecordBatchResult(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.batchRuns[id]++
+}
+
+func (m *Memory) BatchResultCount(id string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.batchRuns[id]
 }
 
 func (m *Memory) SaveExport(job *model.ExportJob) {
@@ -89,13 +103,13 @@ func (m *Memory) ReservePrize(id string) bool {
 func (m *Memory) SaveDelivery(state *model.DeliveryState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.deliveries[state.CampaignID] = state.Clone()
+	m.deliveries[state.CampaignID] = state
 }
 
 func (m *Memory) Delivery(id string) *model.DeliveryState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.deliveries[id].Clone()
+	return m.deliveries[id]
 }
 
 func (m *Memory) PutClaim(claim *model.Claim) {

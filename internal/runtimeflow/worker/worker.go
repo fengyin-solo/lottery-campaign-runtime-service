@@ -89,12 +89,18 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	return results
 }
 
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
+
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)
 	attempts := 0
 	for {
 		if err := ctx.Err(); err != nil {
-			return attempts, err
+			return attempts, nil
 		}
 		attempts++
 		if err := send(); err == nil {
@@ -102,7 +108,7 @@ func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan
 		}
 		select {
 		case <-ctx.Done():
-			return attempts, ctx.Err()
+			return attempts, nil
 		case <-retry:
 		}
 	}
