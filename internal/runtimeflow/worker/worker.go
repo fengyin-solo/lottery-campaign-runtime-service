@@ -42,9 +42,6 @@ func RetryRedemption(ctx context.Context, max int, attempt func(int) error) (int
 }
 
 func Notify(ctx context.Context, notifier model.Notifier, userID string) error {
-	if notifier == nil {
-		return nil
-	}
 	return notifier.Notify(ctx, userID)
 }
 
@@ -88,6 +85,12 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	}()
 	return results
 }
+
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
 
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)
