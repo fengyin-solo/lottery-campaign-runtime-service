@@ -12,7 +12,7 @@ func RunExport(ctx context.Context, started chan<- struct{}, release <-chan stru
 	close(started)
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil
 	case <-release:
 		return nil
 	}
@@ -88,6 +88,12 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	}()
 	return results
 }
+
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
 
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)

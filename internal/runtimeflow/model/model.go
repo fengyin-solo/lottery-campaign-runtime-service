@@ -16,8 +16,7 @@ func (j *ExportJob) Clone() *ExportJob {
 	if j == nil {
 		return nil
 	}
-	copy := *j
-	return &copy
+	return j
 }
 
 type AudienceBatch struct {
@@ -110,10 +109,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
