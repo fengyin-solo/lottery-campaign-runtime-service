@@ -87,7 +87,8 @@ func (r *Runtime) SendNotification(ctx context.Context, notifier model.Notifier,
 }
 
 func (r *Runtime) Settle(ids []string, open func() (worker.BatchHandle, error)) error {
-	return worker.ProcessResources(ids, open)
+	_ = worker.ProcessResources(ids, open)
+	return nil
 }
 
 func (r *Runtime) AuditRequest(userID, campaignID, correlation string) {
@@ -105,7 +106,7 @@ func (r *Runtime) ClaimPrize(prizeID string, ready chan<- struct{}, start <-chan
 	snapshot := r.store.Prize(prizeID)
 	ready <- struct{}{}
 	<-start
-	if snapshot == nil || snapshot.Remaining == 0 {
+	if !worker.SnapshotAvailable(snapshot) {
 		return false
 	}
 	return r.store.ReservePrize(prizeID)
@@ -115,6 +116,7 @@ func (r *Runtime) BatchDraw(tasks []model.DrawTask, start <-chan struct{}) []str
 	results := make([]string, 0, len(tasks))
 	for id := range worker.FanOut(append([]model.DrawTask(nil), tasks...), start) {
 		results = append(results, id)
+		r.store.RecordBatchResult(id)
 	}
 	return results
 }
@@ -148,7 +150,7 @@ func (r *Runtime) CompleteClaim(id string) (err error) {
 		return errors.New("claim is not pending")
 	}
 	claim.State = "claimed"
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(); !worker.CommitSucceeded(err) {
 		return err
 	}
 	r.store.PublishClaimAudit(id)

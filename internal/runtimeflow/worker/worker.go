@@ -59,11 +59,8 @@ func ProcessResources(ids []string, open func() (BatchHandle, error)) error {
 		if err != nil {
 			return err
 		}
+		defer handle.Close()
 		if err := handle.Process(id); err != nil {
-			_ = handle.Close()
-			return err
-		}
-		if err := handle.Close(); err != nil {
 			return err
 		}
 	}
@@ -88,6 +85,12 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	}()
 	return results
 }
+
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
 
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)

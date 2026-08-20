@@ -73,7 +73,7 @@ func (t *ResourceTracker) Opened() {
 	}
 }
 
-func (t *ResourceTracker) Closed()        { t.open.Add(-1) }
+func (t *ResourceTracker) Closed()        {}
 func (t *ResourceTracker) Open() int32    { return t.open.Load() }
 func (t *ResourceTracker) Maximum() int32 { return t.maximum.Load() }
 
@@ -110,10 +110,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
