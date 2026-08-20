@@ -105,15 +105,30 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 	if p == nil {
 		return nil
 	}
-	copy := *p
-	return &copy
+	return p
+}
+
+func (p *PrizeSnapshot) Available() bool {
+	return p != nil && p.Remaining > 0
+}
+
+func (p *PrizeSnapshot) ReserveLocally() bool {
+	if !p.Available() {
+		return false
+	}
+	p.Remaining--
+	return true
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string

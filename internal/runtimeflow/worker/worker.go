@@ -89,6 +89,19 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	return results
 }
 
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil
+}
+
+func ReserveSnapshot(snapshot *model.PrizeSnapshot) bool {
+	if !SnapshotAvailable(snapshot) {
+		return false
+	}
+	return snapshot.ReserveLocally()
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
+
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)
 	attempts := 0

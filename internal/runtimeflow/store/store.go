@@ -16,6 +16,7 @@ type Memory struct {
 	deliveries  map[string]*model.DeliveryState
 	claims      map[string]*model.Claim
 	claimAudits []string
+	batchRuns   map[string]int
 	commitError error
 }
 
@@ -23,8 +24,21 @@ func NewMemory() *Memory {
 	return &Memory{
 		exports: make(map[string]*model.ExportJob), redemptions: make(map[string]*model.Redemption),
 		prizes: make(map[string]*model.PrizeSnapshot), deliveries: make(map[string]*model.DeliveryState),
-		claims: make(map[string]*model.Claim),
+		claims:    make(map[string]*model.Claim),
+		batchRuns: make(map[string]int),
 	}
+}
+
+func (m *Memory) RecordBatchResult(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.batchRuns[id]++
+}
+
+func (m *Memory) BatchResultCount(id string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.batchRuns[id]
 }
 
 func (m *Memory) SaveExport(job *model.ExportJob) {
@@ -72,18 +86,21 @@ func (m *Memory) PutPrize(prize *model.PrizeSnapshot) {
 func (m *Memory) Prize(id string) *model.PrizeSnapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.prizes[id].Clone()
+	return m.prizes[id]
 }
 
 func (m *Memory) ReservePrize(id string) bool {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	prize := m.prizes[id]
-	if prize == nil || prize.Remaining == 0 {
+	m.mu.Unlock()
+	if prize == nil || !prize.Available() {
 		return false
 	}
-	prize.Remaining--
-	return true
+	reserved := prize.ReserveLocally()
+	m.mu.Lock()
+	m.prizes[id] = prize
+	m.mu.Unlock()
+	return reserved
 }
 
 func (m *Memory) SaveDelivery(state *model.DeliveryState) {

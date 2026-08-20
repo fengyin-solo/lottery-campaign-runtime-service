@@ -105,16 +105,22 @@ func (r *Runtime) ClaimPrize(prizeID string, ready chan<- struct{}, start <-chan
 	snapshot := r.store.Prize(prizeID)
 	ready <- struct{}{}
 	<-start
-	if snapshot == nil || snapshot.Remaining == 0 {
+	if !worker.SnapshotAvailable(snapshot) {
 		return false
 	}
-	return r.store.ReservePrize(prizeID)
+	reserved := worker.ReserveSnapshot(snapshot)
+	if !reserved {
+		return false
+	}
+	r.store.PutPrize(snapshot)
+	return true
 }
 
 func (r *Runtime) BatchDraw(tasks []model.DrawTask, start <-chan struct{}) []string {
 	results := make([]string, 0, len(tasks))
 	for id := range worker.FanOut(append([]model.DrawTask(nil), tasks...), start) {
 		results = append(results, id)
+		r.store.RecordBatchResult(id)
 	}
 	return results
 }
@@ -148,7 +154,7 @@ func (r *Runtime) CompleteClaim(id string) (err error) {
 		return errors.New("claim is not pending")
 	}
 	claim.State = "claimed"
-	if err = tx.Commit(); err != nil {
+	if err = tx.Commit(); !worker.CommitSucceeded(err) {
 		return err
 	}
 	r.store.PublishClaimAudit(id)

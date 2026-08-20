@@ -24,10 +24,10 @@ func TestCancelledExportStopsAndNextExportIsolated(t *testing.T) {
 	<-started
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled export returned %v", err)
+		t.Errorf("cancelled export returned %v", err)
 	}
 	if job := memory.Export("campaign-old"); job == nil || job.State != "cancelled" {
-		t.Fatalf("cancelled export state = %#v", job)
+		t.Errorf("cancelled export state = %#v", job)
 	}
 	started2 := make(chan struct{})
 	release2 := make(chan struct{})
@@ -53,7 +53,7 @@ func TestAudienceBatchKeepsSubmittedUsers(t *testing.T) {
 	users = append(users[:0], "u-next")
 	close(release)
 	if got := <-done; !reflect.DeepEqual(got, []string{"u-1", "u-2"}) {
-		t.Fatalf("submitted audience changed after caller reuse: %v", got)
+		t.Errorf("submitted audience changed after caller reuse: %v", got)
 	}
 	started2 := make(chan struct{})
 	release2 := make(chan struct{})
@@ -77,10 +77,10 @@ func TestWrappedTemporaryRedemptionRetriesWithoutDuplicateCommit(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("redeem returned %v", err)
+		t.Errorf("redeem returned %v", err)
 	}
 	if attempts != 2 {
-		t.Fatalf("attempt count = %d", attempts)
+		t.Errorf("attempt count = %d", attempts)
 	}
 	if got := memory.Redemption("redeem-1"); got == nil || got.Attempts != 2 || got.State != "committed" {
 		t.Fatalf("redemption = %#v", got)
@@ -102,7 +102,7 @@ func TestTypedNilNotifierSkipsAndLaterSendStillWorks(t *testing.T) {
 	var notifier model.Notifier = provider
 	receipt, err := runtime.SendNotification(context.Background(), notifier, "u-1")
 	if err != nil || receipt.State != "skipped" {
-		t.Fatalf("typed nil result = %#v, %v", receipt, err)
+		t.Errorf("typed nil result = %#v, %v", receipt, err)
 	}
 	receipt, err = runtime.SendNotification(context.Background(), &nilNotifier{}, "u-2")
 	if err != nil || receipt.State != "sent" {
@@ -159,6 +159,22 @@ func TestPooledAuditDoesNotLeakPreviousIdentity(t *testing.T) {
 func TestConcurrentLastPrizeProducesOneWinner(t *testing.T) {
 	memory := store.NewMemory()
 	memory.PutPrize(&model.PrizeSnapshot{PrizeID: "last-prize", Remaining: 1})
+	modelOriginal := &model.PrizeSnapshot{PrizeID: "model-copy", Remaining: 1}
+	modelCopy := modelOriginal.Clone()
+	modelCopy.Remaining = 0
+	if modelOriginal.Remaining != 1 || modelCopy.PrizeID != "model-copy" {
+		t.Errorf("snapshot clone shares state: original=%#v copy=%#v", modelOriginal, modelCopy)
+	}
+	storeCopy := memory.Prize("last-prize")
+	storeCopy.Remaining = 99
+	if remaining := memory.Prize("last-prize").Remaining; remaining != 1 {
+		t.Errorf("store exposed mutable prize snapshot: %d", remaining)
+	}
+	if !worker.SnapshotAvailable(memory.Prize("last-prize")) ||
+		worker.SnapshotAvailable(&model.PrizeSnapshot{PrizeID: "empty", Remaining: 0}) ||
+		worker.SnapshotAvailable(nil) {
+		t.Error("worker availability decision is inconsistent")
+	}
 	runtime := New(memory)
 	ready := make(chan struct{}, 2)
 	start := make(chan struct{})
@@ -184,8 +200,14 @@ func TestConcurrentLastPrizeProducesOneWinner(t *testing.T) {
 }
 
 func TestBatchDrawReturnsEveryTaskBeforeClosing(t *testing.T) {
-	runtime := New(store.NewMemory())
-	tasks := []model.DrawTask{{ID: "draw-a"}, {ID: "draw-b"}, {ID: "draw-c"}}
+	memory := store.NewMemory()
+	runtime := New(memory)
+	tasks := []model.DrawTask{{ID: "draw-a", Labels: []string{"vip"}}, {ID: "draw-b"}, {ID: "draw-c"}}
+	clone := tasks[0].Clone()
+	clone.Labels[0] = "changed"
+	if tasks[0].Labels[0] != "vip" {
+		t.Errorf("task clone shares labels: %v", tasks[0].Labels)
+	}
 	start := make(chan struct{})
 	var got []string
 	done := make(chan struct{})
@@ -207,6 +229,9 @@ func TestBatchDrawReturnsEveryTaskBeforeClosing(t *testing.T) {
 		if !want[id] {
 			t.Fatalf("unexpected result %q", id)
 		}
+		if memory.BatchResultCount(id) != 1 {
+			t.Fatalf("batch result %q recorded %d times", id, memory.BatchResultCount(id))
+		}
 	}
 }
 
@@ -220,11 +245,15 @@ func TestCancelledDeliveryStopsRetriesAndNextRequestIsClean(t *testing.T) {
 	<-started
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled delivery returned %v", err)
+		t.Errorf("cancelled delivery returned %v", err)
 	}
 	old := memory.Delivery("campaign-old")
 	if old == nil || !old.Stopped || old.Attempts != 1 {
-		t.Fatalf("cancelled delivery state = %#v", old)
+		t.Errorf("cancelled delivery state = %#v", old)
+	}
+	old.Attempts = 99
+	if stored := memory.Delivery("campaign-old"); stored.Attempts != 1 {
+		t.Errorf("delivery store exposed mutable state: %#v", stored)
 	}
 	started2 := make(chan struct{})
 	retry2 := make(chan struct{})
@@ -244,13 +273,21 @@ func TestFailedClaimCommitDoesNotPublishAudit(t *testing.T) {
 	memory.SetCommitError(errors.New("storage unavailable"))
 	runtime := New(memory)
 	if err := runtime.CompleteClaim("claim-1"); err == nil {
-		t.Fatal("expected commit failure")
+		t.Error("expected commit failure")
+	}
+	if worker.CommitSucceeded(errors.New("commit failed")) || !worker.CommitSucceeded(nil) {
+		t.Error("commit outcome classification is inconsistent")
+	}
+	copy := memory.Claim("claim-1")
+	copy.State = "tampered"
+	if stored := memory.Claim("claim-1"); stored.State != "won" {
+		t.Errorf("claim store exposed mutable state: %#v", stored)
 	}
 	if claim := memory.Claim("claim-1"); claim == nil || claim.State != "won" {
-		t.Fatalf("failed claim changed persisted state: %#v", claim)
+		t.Errorf("failed claim changed persisted state: %#v", claim)
 	}
 	if audits := memory.ClaimAudits(); len(audits) != 0 {
-		t.Fatalf("failed claim published audit: %v", audits)
+		t.Errorf("failed claim published audit: %v", audits)
 	}
 	if err := runtime.CompleteClaim("claim-1"); err != nil {
 		t.Fatalf("retry claim failed: %v", err)
