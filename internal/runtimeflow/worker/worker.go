@@ -100,7 +100,7 @@ func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan
 	attempts := 0
 	for {
 		if err := ctx.Err(); err != nil {
-			return attempts, nil
+			return attempts, err
 		}
 		attempts++
 		if err := send(); err == nil {
@@ -108,7 +108,7 @@ func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan
 		}
 		select {
 		case <-ctx.Done():
-			return attempts, nil
+			return attempts, ctx.Err()
 		case <-retry:
 		}
 	}

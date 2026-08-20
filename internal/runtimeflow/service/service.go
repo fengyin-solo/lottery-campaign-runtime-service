@@ -128,10 +128,6 @@ func (r *Runtime) Dispatch(ctx context.Context, campaignID string, started chan<
 		attempts, err := worker.DeliverWithRetry(ctx, started, retry, send)
 		state.Finish(attempts, err)
 		r.store.SaveDelivery(state)
-		if err != nil {
-			done <- nil
-			return
-		}
 		done <- err
 	}()
 	return done

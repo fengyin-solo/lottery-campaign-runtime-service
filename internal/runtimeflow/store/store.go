@@ -103,13 +103,13 @@ func (m *Memory) ReservePrize(id string) bool {
 func (m *Memory) SaveDelivery(state *model.DeliveryState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.deliveries[state.CampaignID] = state
+	m.deliveries[state.CampaignID] = state.Clone()
 }
 
 func (m *Memory) Delivery(id string) *model.DeliveryState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.deliveries[id]
+	return m.deliveries[id].Clone()
 }
 
 func (m *Memory) PutClaim(claim *model.Claim) {

@@ -129,12 +129,13 @@ func (s *DeliveryState) Clone() *DeliveryState {
 	if s == nil {
 		return nil
 	}
-	return s
+	copy := *s
+	return &copy
 }
 
 func (s *DeliveryState) Finish(attempts int, err error) {
 	s.Attempts = attempts
-	s.Stopped = false
+	s.Stopped = err != nil
 }
 
 type Claim struct {
