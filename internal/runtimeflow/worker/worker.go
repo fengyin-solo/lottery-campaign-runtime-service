@@ -19,7 +19,7 @@ func RunExport(ctx context.Context, started chan<- struct{}, release <-chan stru
 }
 
 func ConsumeAudience(batch model.AudienceBatch, started chan<- struct{}, release <-chan struct{}) []string {
-	owned := batch.Clone()
+	owned := batch
 	close(started)
 	<-release
 	return append([]string(nil), owned.UserIDs...)
@@ -88,6 +88,12 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	}()
 	return results
 }
+
+func SnapshotAvailable(snapshot *model.PrizeSnapshot) bool {
+	return snapshot != nil && snapshot.Remaining > 0
+}
+
+func CommitSucceeded(err error) bool { return err == nil }
 
 func DeliverWithRetry(ctx context.Context, started chan<- struct{}, retry <-chan struct{}, send func() error) (int, error) {
 	close(started)

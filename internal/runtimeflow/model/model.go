@@ -26,11 +26,10 @@ type AudienceBatch struct {
 }
 
 func NewAudienceBatch(campaignID string, userIDs []string) AudienceBatch {
-	return AudienceBatch{CampaignID: campaignID, UserIDs: append([]string(nil), userIDs...)}
+	return AudienceBatch{CampaignID: campaignID, UserIDs: userIDs}
 }
 
 func (b AudienceBatch) Clone() AudienceBatch {
-	b.UserIDs = append([]string(nil), b.UserIDs...)
 	return b
 }
 
@@ -110,10 +109,14 @@ func (p *PrizeSnapshot) Clone() *PrizeSnapshot {
 }
 
 type DrawTask struct {
-	ID string
+	ID     string
+	Labels []string
 }
 
-func (t DrawTask) Clone() DrawTask { return t }
+func (t DrawTask) Clone() DrawTask {
+	t.Labels = append([]string(nil), t.Labels...)
+	return t
+}
 
 type DeliveryState struct {
 	CampaignID string
