@@ -115,7 +115,10 @@ type DrawTask struct {
 }
 
 func (t DrawTask) Clone() DrawTask {
-	return t
+	return DrawTask{
+		ID:     t.ID,
+		Labels: append([]string(nil), t.Labels...),
+	}
 }
 
 func (t *DrawTask) MarkDelivered() {

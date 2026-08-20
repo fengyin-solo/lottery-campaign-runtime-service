@@ -114,6 +114,7 @@ func (r *Runtime) ClaimPrize(prizeID string, ready chan<- struct{}, start <-chan
 func (r *Runtime) BatchDraw(tasks []model.DrawTask, start <-chan struct{}) []string {
 	results := make([]string, 0, len(tasks))
 	for id := range worker.FanOut(tasks, start) {
+		r.store.RecordBatchResult(id)
 		results = append(results, id)
 	}
 	return results

@@ -32,9 +32,7 @@ func NewMemory() *Memory {
 func (m *Memory) RecordBatchResult(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if _, exists := m.batchRuns[id]; !exists {
-		m.batchRuns[id] = 0
-	}
+	m.batchRuns[id]++
 }
 
 func (m *Memory) BatchResultCount(id string) int {

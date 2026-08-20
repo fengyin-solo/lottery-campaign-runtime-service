@@ -74,15 +74,16 @@ func FanOut(tasks []model.DrawTask, start <-chan struct{}) <-chan string {
 	results := make(chan string, len(tasks))
 	var wg sync.WaitGroup
 	for _, task := range tasks {
-		go func() {
-			wg.Add(1)
+		wg.Add(1)
+		go func(task model.DrawTask) {
 			defer wg.Done()
 			<-start
 			task.MarkDelivered()
 			results <- task.ID
-		}()
+		}(task.Clone())
 	}
 	go func() {
+		wg.Wait()
 		close(results)
 	}()
 	return results
